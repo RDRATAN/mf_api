@@ -1,56 +1,66 @@
 const express = require('express');
 const axios = require('axios');
 const cheerio = require('cheerio');
-const cron = require('node-cron');
 const cors = require('cors');
+
 const app = express();
 app.use(cors({ origin: '*' })); // Enable CORS for all origins
+
 const port = 3007;
+const fetchInterval = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 let cachedData = null;
 
 async function fetchDataAndCache() {
   try {
-    const formData = {
-      MFName: '-1'
-    };
+    const now = new Date();
+    const gmtTime = now.getUTCHours() + 5 + (now.getUTCMinutes() / 60); // GMT+5:30
 
-    const response = await axios.post('https://www.amfiindia.com/modules/NAVList', formData);
+    // Check if GMT+5:30 is between 9 PM and 11 PM
+    if (gmtTime >= 21 && gmtTime <= 23) {
+      const formData = {
+        MFName: '-1'
+      };
 
-    // Ensure the request was successful
-    if (response.status !== 200) {
-      console.error('Failed to fetch data from the API');
-      return;
-    }
+      const response = await axios.post('https://www.amfiindia.com/modules/NAVList', formData);
 
-    const data = response.data;
-
-    // Use Cheerio to parse the HTML content
-    const $ = cheerio.load(data);
-
-    // Extract data from the HTML table
-    const tableData = [];
-    $('#divExcel table tr').each((index, row) => {
-      const rowData = $(row)
-        .find('td')
-        .map((i, col) => $(col).text().trim())
-        .get();
-
-      if (rowData.length > 0) {
-        tableData.push({
-          name: rowData[0],
-          code1: rowData[1],
-          code2: rowData[2],
-          nav: rowData[3],
-          navdate: rowData[4]
-        });
+      // Ensure the request was successful
+      if (response.status !== 200) {
+        console.error('Failed to fetch data from the API');
+        return;
       }
-    });
 
-    // Store the extracted data in the cached variable
-    cachedData = tableData;
+      const data = response.data;
 
-    console.log('Data fetched and cached successfully');
+      // Use Cheerio to parse the HTML content
+      const $ = cheerio.load(data);
+
+      // Extract data from the HTML table
+      const tableData = [];
+      $('#divExcel table tr').each((index, row) => {
+        const rowData = $(row)
+          .find('td')
+          .map((i, col) => $(col).text().trim())
+          .get();
+
+        if (rowData.length > 0) {
+          tableData.push({
+            name: rowData[0],
+            code1: rowData[1],
+            code2: rowData[2],
+            nav: rowData[3],
+            navdate: rowData[4]
+          });
+        }
+      });
+
+      // Store the extracted data in the cached variable
+      cachedData = tableData;
+
+      console.log('Data fetched and cached successfully');
+    } else {
+      console.log('Not within the specified time range. Skipping data fetch.');
+    }
   } catch (error) {
     console.error(`Error: ${error.message}`);
   }
@@ -59,8 +69,8 @@ async function fetchDataAndCache() {
 // Fetch data when the server starts
 fetchDataAndCache();
 
-// Schedule a task to fetch data every 30 minutes between 8:30 PM to 10:30 PM
-cron.schedule('30-59/30 20-22 * * *', fetchDataAndCache);
+// Set up an interval to fetch data every 30 minutes
+setInterval(fetchDataAndCache, fetchInterval);
 
 app.get('/GetMutualFundsData', (req, res) => {
   try {

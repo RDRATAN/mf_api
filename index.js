@@ -89,6 +89,11 @@ app.get('/GetMutualFundsData', (req, res) => {
   }
 });
 
+app.get('/keepactive',(req,res)=>{
+  res.send("Sucessfully Activated !");
+
+});
+
 app.listen(port, () => {
   console.log(`Server is running on http://localhost:${port}`);
 });

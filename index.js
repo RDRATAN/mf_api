@@ -11,13 +11,13 @@ const fetchInterval = 30 * 60 * 1000; // 30 minutes in milliseconds
 
 let cachedData = null;
 
-async function fetchDataAndCache() {
+async function fetchDataAndCache(isStartup=false) {
   try {
     const now = new Date();
     const gmtTime = now.getUTCHours() + 5 + (now.getUTCMinutes() / 60); // GMT+5:30
 
     // Check if GMT+5:30 is between 9 PM and 11 PM
-    if (gmtTime >= 21 && gmtTime <= 23) {
+    if ((gmtTime >= 21 && gmtTime <= 23)||isStartup) {
       const formData = {
         MFName: '-1'
       };
@@ -67,7 +67,7 @@ async function fetchDataAndCache() {
 }
 
 // Fetch data when the server starts
-fetchDataAndCache();
+fetchDataAndCache(true);
 
 // Set up an interval to fetch data every 30 minutes
 setInterval(fetchDataAndCache, fetchInterval);
